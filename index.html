@@ -1,0 +1,914 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NutriCRM - Sistema Maestro SMAE v5.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
+    <style>
+        /* Reglas de ocultamiento para barras de desplazamiento y modo impresión */
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel" data-type="module">
+        // Extraemos Hooks de React (Simulando la importación de 'react')
+        const { useState, useEffect, useMemo } = React;
+
+        // --- SISTEMA DE ICONOS (Adaptación para Lucide sin NPM) ---
+        // Tu código importa muchos iconos. Aquí creamos un componente universal que se adapta a tu código.
+        const Icon = ({ name, className = "" }) => {
+            useEffect(() => { if(window.lucide) window.lucide.createIcons(); }, [name]);
+            return <i data-lucide={name} className={className}></i>;
+        };
+
+        // Creamos "Alias" para que tu código funcione idéntico a los 'import' originales
+        const Users = (props) => <Icon name="users" {...props} />;
+        const Leaf = (props) => <Icon name="leaf" {...props} />;
+        const CalendarDays = (props) => <Icon name="calendar-days" {...props} />;
+        const Wallet = (props) => <Icon name="wallet" {...props} />;
+        const Settings = (props) => <Icon name="settings" {...props} />;
+        const Search = (props) => <Icon name="search" {...props} />;
+        const Plus = (props) => <Icon name="plus" {...props} />;
+        const Bell = (props) => <Icon name="bell" {...props} />;
+        const X = (props) => <Icon name="x" {...props} />;
+        const ChevronRight = (props) => <Icon name="chevron-right" {...props} />;
+        const ArrowLeft = (props) => <Icon name="arrow-left" {...props} />;
+        const Phone = (props) => <Icon name="phone" {...props} />;
+        const Mail = (props) => <Icon name="mail" {...props} />;
+        const History = (props) => <Icon name="history" {...props} />;
+        const FileText = (props) => <Icon name="file-text" {...props} />;
+        const Save = (props) => <Icon name="save" {...props} />;
+        const Edit2 = (props) => <Icon name="edit-2" {...props} />;
+        const Utensils = (props) => <Icon name="utensils" {...props} />;
+        const ClipboardList = (props) => <Icon name="clipboard-list" {...props} />;
+        const Clock = (props) => <Icon name="clock" {...props} />;
+        const Download = (props) => <Icon name="download" {...props} />;
+        const Stethoscope = (props) => <Icon name="stethoscope" {...props} />;
+        const Activity = (props) => <Icon name="activity" {...props} />;
+        const ClipboardCheck = (props) => <Icon name="clipboard-check" {...props} />;
+        const Printer = (props) => <Icon name="printer" {...props} />;
+        const CheckSquare = (props) => <Icon name="check-square" {...props} />;
+        const Trash2 = (props) => <Icon name="trash-2" {...props} />;
+        const Package = (props) => <Icon name="package" {...props} />;
+        const Upload = (props) => <Icon name="upload" {...props} />;
+        const FileSpreadsheet = (props) => <Icon name="file-spreadsheet" {...props} />;
+        const ImageIcon = (props) => <Icon name="image" {...props} />;
+        const Check = (props) => <Icon name="check" {...props} />;
+        const PlusCircle = (props) => <Icon name="plus-circle" {...props} />;
+        const Type = (props) => <Icon name="type" {...props} />;
+        const Tag = (props) => <Icon name="tag" {...props} />;
+        const Monitor = (props) => <Icon name="monitor" {...props} />;
+        const Info = (props) => <Icon name="info" {...props} />;
+        const FlaskConical = (props) => <Icon name="flask-conical" {...props} />;
+        const Zap = (props) => <Icon name="zap" {...props} />;
+        const Scale = (props) => <Icon name="scale" {...props} />;
+        const Calculator = (props) => <Icon name="calculator" {...props} />;
+        const CalendarPlus = (props) => <Icon name="calendar-plus" {...props} />;
+
+        // ==========================================================================
+        // 1. CONSTANTES Y CONFIGURACIÓN TÉCNICA (SMAE v5)
+        // ==========================================================================
+        const GRUPOS_SMAE = [
+        "Fruta", "Verdura", "Cereales con grasa", "Cereales sin grasa",
+        "Alimentos de origen animal de muy bajo aporte de grasa",
+        "Alimentos de origen animal de bajo aporte de grasa",
+        "Alimentos de origen animal de moderado aporte de grasa",
+        "Alimentos de origen animal de alto aporte de grasa",
+        "Leguminosas", "Lácteos enteros", "Lácteos descremados", "Lácteos semidescremados",
+        "Grasas con proteína", "Grasas sin proteína", "Azúcares con grasa", "Azúcares sin grasa", "Alimentos libres"
+        ];
+
+        // ==========================================================================
+        // 2. COMPONENTES COMPARTIDOS (GLOBALES)
+        // ==========================================================================
+        const Label = ({ children, className = "" }) => (
+        <label className={`block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5 ml-1 leading-none ${className}`}>
+            {children}
+        </label>
+        );
+
+        const FormInput = ({ value, onChange, type = "text", placeholder = "", className = "", readOnly = false }) => (
+        <input 
+            type={type}
+            value={value || ''}
+            onChange={onChange}
+            placeholder={placeholder}
+            readOnly={readOnly}
+            className={`w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500 transition-all shadow-inner ${className}`}
+        />
+        );
+
+        const SectionHeader = ({ title }) => (
+        <h3 className="text-[13px] font-bold text-emerald-700 uppercase tracking-[0.2em] border-b border-emerald-100 pb-2 flex items-center italic mb-6">
+            <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full mr-3 shadow-sm"></div> {title}
+        </h3>
+        );
+
+        const BuscadorPacientes = ({ pacientes, selectedId, onSelect, placeholder = "Buscar paciente..." }) => {
+        const [term, setTerm] = useState('');
+        const [isOpen, setIsOpen] = useState(false);
+
+        useEffect(() => {
+            if(selectedId) {
+                setTerm(pacientes.find(p=>p.id == selectedId)?.nombre || '');
+            } else {
+                setTerm('');
+            }
+        }, [selectedId, pacientes]);
+
+        const filtered = pacientes.filter(p => p.nombre.toLowerCase().includes(term.toLowerCase()));
+
+        return (
+            <div className="relative w-full">
+            <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400" />
+                <input
+                    type="text"
+                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-semibold text-slate-800 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all shadow-inner"
+                    placeholder={placeholder}
+                    value={term}
+                    onChange={(e) => { setTerm(e.target.value); setIsOpen(true); if(!e.target.value) onSelect(''); }}
+                    onFocus={() => setIsOpen(true)}
+                    onBlur={() => setTimeout(()=>setIsOpen(false), 200)}
+                />
+            </div>
+            {isOpen && filtered.length > 0 && (
+                <div className="absolute z-50 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-xl max-h-48 overflow-y-auto">
+                    {filtered.map(p => (
+                    <div key={p.id} className="p-3 hover:bg-emerald-50 cursor-pointer text-sm font-bold text-slate-700 border-b border-slate-50 last:border-0 transition-colors" onClick={() => { onSelect(p.id); setTerm(p.nombre); setIsOpen(false); }}>
+                        {p.nombre} <span className="text-[10px] text-slate-400 font-normal ml-2">Exp: #{p.id}</span>
+                    </div>
+                    ))}
+                </div>
+            )}
+            </div>
+        );
+        };
+
+        // ==========================================================================
+        // 3. COMPONENTES MODALES (UI)
+        // ==========================================================================
+        function ModalNuevoPaciente({ onClose, onSave }) {
+        const [nombre, setNombre] = useState('');
+        return (
+            <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[600] flex items-center justify-center p-4">
+            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md p-8 animate-in zoom-in duration-200 border border-white/20">
+                <div className="flex justify-between items-center mb-6 border-b border-slate-100 pb-4">
+                <h3 className="font-bold text-slate-800 text-base uppercase tracking-tight italic">Nuevo Registro Maestro</h3>
+                <button onClick={onClose} className="p-1 hover:bg-slate-100 rounded-full transition-colors"><X className="w-5 h-5 text-slate-400"/></button>
+                </div>
+                <div className="space-y-6">
+                    <div>
+                        <Label>Nombre Completo del Paciente</Label>
+                        <FormInput value={nombre} onChange={(e)=>setNombre(e.target.value)} placeholder="Ej. Ana García..." autoFocus />
+                    </div>
+                    <div className="flex space-x-3 pt-2">
+                        <button onClick={onClose} className="flex-1 py-3 text-slate-500 font-bold text-xs uppercase hover:bg-slate-50 rounded-xl transition-all">Cancelar</button>
+                        <button onClick={() => {if(!nombre.trim()) return; onSave({nombre})}} className="flex-[2] py-3 bg-emerald-600 text-white rounded-xl font-bold text-xs uppercase shadow-lg shadow-emerald-500/20 active:scale-95 transition-all">Crear Expediente</button>
+                    </div>
+                </div>
+            </div>
+            </div>
+        );
+        }
+
+        function ModalHistoriaClinicaCompleta({ paciente, onClose, onSave }) {
+        const [datos, setDatos] = useState({ ...paciente });
+        const updateField = (field, value) => setDatos(prev => ({ ...prev, [field]: value }));
+        const toggleList = (field, value) => {
+            const list = datos[field] || [];
+            updateField(field, list.includes(value) ? list.filter(v => v !== value) : [...list, value]);
+        };
+
+        return (
+            <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md z-[500] flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl shadow-2xl w-full max-w-6xl h-[95vh] flex flex-col animate-in slide-in-from-bottom-8 duration-500 overflow-hidden border border-white/20">
+                
+                <div className="px-8 py-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
+                <div className="flex items-center">
+                    <div className="p-3 bg-emerald-600 rounded-xl mr-5 shadow-lg"><ClipboardCheck className="text-white w-6 h-6"/></div>
+                    <div>
+                        <h2 className="text-lg font-black text-slate-900 tracking-tight leading-none mb-1 uppercase italic">Ficha Clínica Integral</h2>
+                        <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">Sincronización SMAE v5.0 | {datos.nombre}</p>
+                    </div>
+                </div>
+                <div className="flex items-center space-x-3">
+                    <button className="p-2 hover:bg-slate-100 rounded-full transition-all text-slate-400"><Printer className="w-5 h-5"/></button>
+                    <button onClick={onClose} className="p-2 hover:bg-rose-50 hover:text-rose-500 rounded-full transition-all group"><X className="w-6 h-6 group-hover:rotate-90 transition-transform"/></button>
+                </div>
+                </div>
+
+                <div className="flex-1 overflow-y-auto px-10 py-10 space-y-12 scrollbar-hide bg-white">
+                <div className="space-y-6">
+                    <SectionHeader title="I. Identificación y Antecedentes Generales" />
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+                    <div className="md:col-span-2"><Label>Nombre Completo</Label><FormInput value={datos.nombre} onChange={(e)=>updateField('nombre', e.target.value)} className="text-base font-bold text-emerald-900 uppercase italic shadow-emerald-50" /></div>
+                    <div><Label>Fecha Apertura</Label><FormInput value={datos.fecha} readOnly className="text-center opacity-60 bg-slate-100" /></div>
+                    <div><Label>Sexo</Label><select className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none appearance-none cursor-pointer" value={datos.sexo || ''} onChange={(e)=>updateField('sexo', e.target.value)}><option value="Femenino">Femenino</option><option value="Masculino">Masculino</option></select></div>
+                    <div className="md:col-span-2"><Label>Motivo de Consulta</Label><FormInput value={datos.motivoConsulta} onChange={(e)=>updateField('motivoConsulta', e.target.value)} /></div>
+                    <div className="md:col-span-2"><Label>Diagnóstico Médico Inicial</Label><textarea className="w-full p-2.5 bg-emerald-50/50 border border-emerald-100 rounded-xl font-bold text-emerald-800 text-sm outline-none shadow-inner h-20 uppercase italic" value={datos.diagnostico || ''} onChange={(e)=>updateField('diagnostico', e.target.value)} /></div>
+                    <div><Label>Edad</Label><FormInput value={datos.edad} type="number" onChange={(e)=>updateField('edad', e.target.value)} /></div>
+                    <div><Label>F. Nacimiento</Label><FormInput value={datos.fechaNacimiento} type="date" onChange={(e)=>updateField('fechaNacimiento', e.target.value)} /></div>
+                    <div><Label>Ocupación</Label><FormInput value={datos.ocupacion} onChange={(e)=>updateField('ocupacion', e.target.value)} /></div>
+                    <div><Label>Teléfono</Label><FormInput value={datos.telefono} onChange={(e)=>updateField('telefono', e.target.value)} /></div>
+                    </div>
+                </div>
+
+                <div className="space-y-6">
+                    <SectionHeader title="II. Protocolo Clínico SMAE" />
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div className="md:col-span-4 grid grid-cols-3 gap-6 bg-slate-900 p-6 rounded-xl shadow-lg border-b-4 border-emerald-500">
+                        <div><Label><span className="text-emerald-400">Pérdida Peso (6m)</span></Label><input className="w-full p-2.5 bg-slate-800 border-none rounded-lg font-black text-white text-center text-xl outline-none focus:ring-1 focus:ring-emerald-500" value={datos.pesoPerdido6m || ''} onChange={(e)=>updateField('pesoPerdido6m', e.target.value)} /></div>
+                        <div><Label><span className="text-emerald-400">Aumento Peso (6m)</span></Label><input className="w-full p-2.5 bg-slate-800 border-none rounded-lg font-black text-white text-center text-xl outline-none focus:ring-1 focus:ring-emerald-500" value={datos.pesoAumentado6m || ''} onChange={(e)=>updateField('pesoAumentado6m', e.target.value)} /></div>
+                        <div><Label><span className="text-emerald-400">Estatus Apetito</span></Label><select className="w-full p-2.5 bg-slate-800 border-none rounded-lg font-black text-white text-center text-xl outline-none appearance-none" value={datos.apetitoCambiado || 'Igual'} onChange={(e)=>updateField('apetitoCambiado', e.target.value)}><option value="Igual">Igual</option><option value="Aumentado">Aumentado</option><option value="Disminuido">Disminuido</option></select></div>
+                    </div>
+                    <div className="md:col-span-4 bg-white border border-emerald-50 p-6 rounded-2xl shadow-inner space-y-6">
+                        <Label>Catálogo de Antecedentes Patológicos Nutricionales</Label>
+                        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+                            {['Diabetes', 'Hipertensión', 'Cardiopatías', 'Gastritis', 'Anemia', 'Sobrepeso', 'Obesidad', 'Dislipidemia', 'Cirrosis'].map(pat => (
+                            <label key={pat} className={`p-3.5 rounded-lg border font-bold uppercase text-[10px] tracking-widest flex items-center cursor-pointer transition-all ${datos.patologicos?.includes(pat) ? 'bg-emerald-600 text-white border-emerald-700 shadow-md scale-[1.02]' : 'bg-slate-50 text-slate-400 border-slate-100 hover:border-emerald-300'}`}>
+                                <input type="checkbox" className="hidden" checked={datos.patologicos?.includes(pat)} onChange={()=>toggleList('patologicos', pat)} />
+                                {datos.patologicos?.includes(pat) ? <Check className="w-4 h-4 mr-2" /> : <div className="w-4 h-4 mr-2 border border-slate-200 rounded" />}
+                                {pat}
+                            </label>
+                            ))}
+                        </div>
+                    </div>
+                    </div>
+                </div>
+
+                <div className="space-y-6">
+                    <SectionHeader title="III. Evaluación Dietética y Recordatorio 24h" />
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-5">
+                    <div className="md:col-span-2"><Label>Descripción Cualitativa del Apetito</Label><FormInput value={datos.apetitoDesc} onChange={(e)=>updateField('apetitoDesc', e.target.value)} /></div>
+                    <div className="md:col-span-2 grid grid-cols-3 gap-3">
+                        <div><Label>H. Desayuno</Label><FormInput value={datos.hDesayuno} onChange={(e)=>updateField('hDesayuno', e.target.value)} className="text-center font-bold" /></div>
+                        <div><Label>H. Comida</Label><FormInput value={datos.hComida} onChange={(e)=>updateField('hComida', e.target.value)} className="text-center font-bold" /></div>
+                        <div><Label>H. Cena</Label><FormInput value={datos.hCena} onChange={(e)=>updateField('hCena', e.target.value)} className="text-center font-bold" /></div>
+                    </div>
+                    <div className="md:col-span-4 bg-slate-900 p-8 rounded-[35px] shadow-2xl relative overflow-hidden">
+                        <Label><span className="text-emerald-400">Protocolo de Ingesta 24 Horas</span></Label>
+                        <div className="mt-6 border border-slate-800 rounded-2xl overflow-hidden shadow-2xl">
+                            <table className="w-full text-left bg-white/5">
+                            <thead className="bg-slate-800 text-white font-black text-[9px] uppercase tracking-widest text-center">
+                                <tr><th className="p-3 border-r border-slate-700">Hora</th><th className="p-3 border-r border-slate-700">Tiempo de Comida</th><th className="p-3">Alimentos y Porciones</th></tr>
+                            </thead>
+                            <tbody className="divide-y border-t border-slate-800">
+                                {[1, 2, 3, 4, 5].map((i) => (
+                                <tr key={i} className="hover:bg-white/5 transition-colors">
+                                    <td className="w-32 border-r border-slate-800 p-0"><input className="w-full p-3 bg-transparent outline-none text-white text-center font-bold text-sm italic" placeholder="00:00" /></td>
+                                    <td className="w-48 border-r border-slate-800 p-0"><input className="w-full p-3 bg-transparent outline-none text-emerald-400 text-[11px] font-black uppercase italic" placeholder="Tiempo..." /></td>
+                                    <td className="p-0"><input className="w-full p-3 bg-transparent outline-none text-slate-300 text-xs font-medium" placeholder="Especifique alimentos y gramajes..." /></td>
+                                </tr>
+                                ))}
+                            </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    </div>
+                </div>
+
+                <div className="space-y-6 pb-24">
+                    <SectionHeader title="IV. Antropometría Maestra y Metas" />
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                    <div className="bg-slate-900 text-white p-10 rounded-3xl md:col-span-2 shadow-xl flex items-center justify-around border-b-8 border-emerald-500 group relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-1 bg-emerald-500 opacity-20"></div>
+                        <div className="text-center group-hover:scale-110 transition-transform">
+                            <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-3 leading-none italic">Estatura</p>
+                            <input type="number" className="bg-transparent text-5xl font-black text-center w-32 outline-none border-b-2 border-emerald-800 focus:border-emerald-500 transition-all italic leading-none" value={datos.talla || ''} onChange={(e)=>updateField('talla', e.target.value)} />
+                            <p className="text-[9px] text-slate-500 mt-3 font-bold uppercase leading-none">Cm</p>
+                        </div>
+                        <div className="w-[1px] h-20 bg-slate-800 opacity-50 mx-4"></div>
+                        <div className="text-center group-hover:scale-110 transition-transform">
+                            <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-3 leading-none italic">Peso Actual</p>
+                            <input type="number" className="bg-transparent text-5xl font-black text-center w-32 outline-none border-b-2 border-emerald-800 focus:border-emerald-500 transition-all italic leading-none" value={datos.peso || ''} onChange={(e)=>updateField('peso', e.target.value)} />
+                            <p className="text-[9px] text-slate-500 mt-3 font-bold uppercase leading-none">Kg</p>
+                        </div>
+                    </div>
+                    <div className="bg-emerald-50 p-10 rounded-3xl md:col-span-2 border-2 border-emerald-100 space-y-8 flex flex-col justify-center shadow-inner">
+                        <div className="relative group/field">
+                            <Label>Objetivo Clínico Ponderal (Target)</Label>
+                            <div className="relative mt-2">
+                            <input type="number" className="w-full p-6 bg-white border-none rounded-xl text-5xl font-black text-emerald-900 shadow-xl outline-none focus:ring-4 focus:ring-emerald-200 text-center italic leading-none" value={datos.pesoDeseado || ''} onChange={(e)=>updateField('pesoDeseado', e.target.value)} />
+                            <span className="absolute right-6 top-1/2 -translate-y-1/2 text-xl font-black text-emerald-100 uppercase pointer-events-none opacity-40 italic">KG</span>
+                            </div>
+                        </div>
+                    </div>
+                    </div>
+                </div>
+                </div>
+
+                <div className="px-8 py-5 border-t border-slate-100 bg-white flex space-x-5 shrink-0 z-50 shadow-inner">
+                <button onClick={onClose} className="flex-1 py-4 text-slate-400 font-bold text-xs uppercase tracking-widest hover:bg-slate-50 rounded-xl transition-all active:scale-95 italic">Descartar</button>
+                <button onClick={() => onSave(datos)} className="flex-[3] py-4 bg-emerald-600 text-white rounded-2xl font-black text-sm shadow-xl shadow-emerald-500/20 hover:bg-emerald-500 active:scale-95 transition-all uppercase tracking-widest flex items-center justify-center group">
+                    <Save className="w-4 h-4 mr-3 group-hover:rotate-12 transition-transform" /> Sincronizar Ficha Maestro
+                </button>
+                </div>
+            </div>
+            </div>
+        );
+        }
+
+        // ==========================================================================
+        // 4. SUB-MÓDULOS OPERATIVOS (SMAE, RECETAS, PLAN)
+        // ==========================================================================
+        function SubModuloMateriaPrima({ data, setData }) {
+        const [showAdd, setShowAdd] = useState(false);
+        const [newItem, setNewItem] = useState({
+            nombre: '', grupo: 'Fruta', cantSugerida: '', unidad: '', pesoBruto: 0, pesoNeto: 0, energia: 0, 
+            proteina: 0, lipidos: 0, hc: 0, fibra: 0, vitA: 0, vitC: 0, folico: 0, hierro: 0, potasio: 0, ig: 0, cg: 0
+        });
+
+        const InputField = ({ label, field, type="number", colSpan="col-span-1" }) => (
+            <div className={colSpan}>
+            <Label>{label}</Label>
+            <FormInput type={type} value={newItem[field]} onChange={(e) => setNewItem({...newItem, [field]: type === "number" ? Number(e.target.value) : e.target.value})} />
+            </div>
+        );
+
+        const handleSave = () => {
+            if(!newItem.nombre) return;
+            setData([...data, { id: Date.now(), ...newItem }]);
+            setShowAdd(false);
+        };
+
+        return (
+            <div className="space-y-6">
+            <div className="flex justify-between items-center bg-white p-4 rounded-xl border border-slate-200 shadow-sm relative overflow-hidden group">
+                <button onClick={()=>setShowAdd(true)} className="bg-slate-900 text-white px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest flex items-center shadow-lg hover:bg-slate-800 transition-all active:scale-95"><Plus className="w-4 h-4 mr-2 text-emerald-400" /> Nuevo Insumo SMAE</button>
+                <button className="p-2.5 bg-slate-50 text-slate-400 rounded-xl hover:text-emerald-600 transition-colors border border-slate-200 shadow-sm"><FileSpreadsheet className="w-5 h-5" /></button>
+            </div>
+
+            {showAdd && (
+                <div className="bg-white p-8 rounded-[35px] border-2 border-emerald-500 shadow-2xl space-y-8 animate-in zoom-in-95 duration-300">
+                    <h3 className="font-bold text-slate-900 uppercase text-sm tracking-widest border-b pb-4 italic">Registro Maestro SMAE (16 Campos Técnicos)</h3>
+                    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+                        <div className="md:col-span-4 bg-slate-50 p-5 rounded-2xl border border-slate-100 shadow-inner">
+                            <Label className="text-emerald-700 italic">Categoría SMAE Prioritaria</Label>
+                            <select className="w-full p-3 bg-white border-2 border-emerald-100 rounded-2xl font-black text-sm outline-none cursor-pointer focus:ring-4 focus:ring-emerald-100 shadow-sm" value={newItem.grupo} onChange={(e)=>setNewItem({...newItem, grupo: e.target.value})}>{GRUPOS_SMAE.map(g => <option key={g} value={g}>{g}</option>)}</select>
+                        </div>
+                        <InputField label="Nombre" field="nombre" type="text" colSpan="md:col-span-2" />
+                        <InputField label="Cant. Sugerida" field="cantSugerida" type="text" />
+                        <InputField label="Unidad" field="unidad" type="text" />
+                        <div className="md:col-span-4 grid grid-cols-2 md:grid-cols-4 gap-5 border-t-2 border-slate-50 pt-8 border-dashed">
+                        <InputField label="P. Bruto (g)" field="pesoBruto" /><InputField label="P. Neto (g)" field="pesoNeto" /><InputField label="Kcal" field="energia" /><InputField label="Prot (g)" field="proteina" />
+                        <InputField label="Lip (g)" field="lipidos" /><InputField label="HC (g)" field="hc" /><InputField label="Fibra (g)" field="fibra" /><InputField label="Vit A" field="vitA" />
+                        <InputField label="Vit C" field="vitC" /><InputField label="Fólico" field="folico" /><InputField label="Hierro" field="hierro" /><InputField label="Potasio" field="potasio" />
+                        </div>
+                    </div>
+                    <div className="flex justify-end space-x-4 border-t pt-6"><button onClick={()=>setShowAdd(false)} className="px-6 py-2.5 text-xs font-black text-slate-400 uppercase tracking-widest hover:text-slate-900 transition-colors italic">Descartar</button><button onClick={handleSave} className="bg-slate-900 text-white px-10 py-3 rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl active:scale-95 transition-all group flex items-center leading-none italic"><Save className="w-4 h-4 mr-2 text-emerald-400" /> Confirmar Sincronización</button></div>
+                </div>
+            )}
+
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-x-auto scrollbar-hide">
+                <table className="w-full text-left min-w-[2000px]">
+                <thead className="bg-slate-50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    <tr>
+                    <th className="px-10 py-6">Alimento SMAE</th><th className="px-10 py-6">Categoría</th><th className="px-10 py-6">Cant / Unidad</th><th className="px-10 py-6 text-center">Peso Neto</th>
+                    <th className="px-10 py-6 text-center text-slate-900 font-extrabold uppercase leading-none">Kcal</th><th className="px-10 py-6 text-center text-emerald-600 uppercase">P (g)</th><th className="px-10 py-6 text-center text-rose-600 uppercase">L (g)</th><th className="px-10 py-6 text-center text-blue-600 uppercase">HC (g)</th>
+                    <th className="px-10 py-6 text-center uppercase">Micros</th><th className="px-10 py-6 text-center uppercase">Metabolismo</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-[14px] font-medium text-slate-800">
+                    {data.map(item => (
+                    <tr key={item.id} className="hover:bg-emerald-50/20 transition-all duration-300">
+                        <td className="px-10 py-4 font-bold text-slate-900 uppercase italic tracking-tighter">{item.nombre}</td>
+                        <td className="px-10 py-4"><span className="text-[9px] bg-emerald-50 px-2.5 py-1 rounded-full text-emerald-700 font-bold uppercase tracking-tighter border border-emerald-100 shadow-sm">{item.grupo}</span></td>
+                        <td className="px-10 py-4 text-slate-500 text-xs italic">{item.cantSugerida} {item.unidad}</td>
+                        <td className="px-10 py-4 text-center text-slate-400 text-xs font-black">{item.pesoNeto}g</td>
+                        <td className="px-10 py-4 text-center font-bold text-slate-900 text-base italic leading-none">{item.energia}</td>
+                        <td className="px-10 py-4 text-center text-emerald-700 font-bold">{item.proteina}</td>
+                        <td className="px-10 py-4 text-center text-rose-700 font-bold">{item.lipidos}</td>
+                        <td className="px-10 py-4 text-center text-blue-700 font-bold">{item.hc}</td>
+                        <td className="px-10 py-4 text-center text-slate-400 text-[11px] font-bold italic uppercase tracking-tighter">A:{item.vitA} | C:{item.vitC} | Fe:{item.hierro}</td>
+                        <td className="px-10 py-4 text-center">
+                            <div className="inline-flex space-x-2">
+                            <span className="bg-orange-50 text-orange-600 px-3 py-1 rounded-lg text-[9px] font-bold border border-orange-100 shadow-sm uppercase tracking-tighter italic">IG: {item.ig}</span>
+                            <span className="bg-blue-50 text-blue-600 px-3 py-1 rounded-lg text-[9px] font-bold border border-blue-100 shadow-sm uppercase tracking-tighter italic">CG: {item.cg}</span>
+                            </div>
+                        </td>
+                    </tr>
+                    ))}
+                </tbody>
+                </table>
+            </div>
+            </div>
+        );
+        }
+
+        function SubModuloBancoRecetas({ materiaPrima, recetas, setRecetas }) {
+        const [showRecipeModal, setShowRecipeModal] = useState(false);
+        const [editingId, setEditingId] = useState(null);
+        const [newRecipe, setNewRecipe] = useState({ nombre: '', ingredientes: [] });
+
+        const calculoEnTiempoReal = useMemo(() => {
+            return newRecipe.ingredientes.reduce((acc, curr) => {
+                const alimento = materiaPrima.find(m => m.id === curr.id);
+                if(alimento) {
+                acc.kcal += (Number(alimento.energia) || 0) * curr.porcion;
+                acc.prot += (Number(alimento.proteina) || 0) * curr.porcion;
+                acc.lip += (Number(alimento.lipidos) || 0) * curr.porcion;
+                acc.hc += (Number(alimento.hc) || 0) * curr.porcion;
+                }
+                return acc;
+            }, { kcal: 0, prot: 0, lip: 0, hc: 0 });
+        }, [newRecipe.ingredientes, materiaPrima]);
+
+        const openEdit = (r) => {
+            setNewRecipe({ ...r });
+            setEditingId(r.id);
+            setShowRecipeModal(true);
+        };
+
+        const handleSaveRecipe = () => {
+            const finalKcal = calculoEnTiempoReal.kcal.toFixed(1);
+            if (editingId) {
+                setRecetas(recetas.map(r => r.id === editingId ? { ...newRecipe, kcalTotales: finalKcal } : r));
+            } else {
+                setRecetas([...recetas, { ...newRecipe, id: Date.now(), kcalTotales: finalKcal }]);
+            }
+            setShowRecipeModal(false);
+            setNewRecipe({ nombre: '', ingredientes: [] });
+            setEditingId(null);
+        };
+
+        return (
+            <div className="space-y-6 animate-in fade-in duration-300">
+            <div className="flex justify-end">
+                <button onClick={()=>{setEditingId(null); setNewRecipe({nombre:'', ingredientes:[]}); setShowRecipeModal(true);}} className="bg-emerald-600 text-white px-6 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest shadow-sm hover:bg-emerald-700 transition-all flex items-center active:scale-95 group leading-none italic">
+                <PlusCircle className="w-5 h-5 mr-2 group-hover:rotate-90 transition-transform" /> Crear Receta Dinámica
+                </button>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                {recetas.map(r => (
+                <div key={r.id} className="bg-white rounded-2xl border border-slate-200 p-5 shadow-sm hover:shadow-md transition-all group relative flex flex-col border-b-4 border-b-emerald-500">
+                    <button onClick={() => openEdit(r)} className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity p-2 hover:bg-emerald-100 text-emerald-600 rounded-full bg-white shadow-sm border border-emerald-50 z-10">
+                        <Edit2 className="w-4 h-4" />
+                    </button>
+                    <div className="flex justify-between items-start mb-4">
+                    <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center text-emerald-600 shadow-inner group-hover:bg-emerald-600 group-hover:text-white transition-all"><Utensils className="w-5 h-5" /></div>
+                    <div className="text-right mr-10"><p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1 italic opacity-80">Energía Fórmula</p><p className="text-xl font-black text-slate-900 leading-none italic">{r.kcalTotales}</p></div>
+                    </div>
+                    <h3 className="text-sm font-black text-slate-800 uppercase italic mb-3 leading-tight">{r.nombre}</h3>
+                    <div className="space-y-1.5 bg-slate-50 p-4 rounded-xl border border-slate-100 shadow-inner flex-1">
+                        {r.ingredientes.map((ing, i) => (
+                        <div key={i} className="flex justify-between text-[11px] font-bold text-slate-600 border-b border-white pb-1.5 last:border-0 last:pb-0 uppercase"><span>{materiaPrima.find(m=>m.id===ing.id)?.nombre}</span><span className="text-emerald-700 font-black tracking-widest uppercase">{ing.porcion} eq.</span></div>
+                        ))}
+                    </div>
+                </div>
+                ))}
+            </div>
+
+            {showRecipeModal && (
+                <div className="fixed inset-0 bg-slate-900/95 backdrop-blur-md z-[300] flex items-center justify-center p-4">
+                    <div className="bg-white rounded-3xl shadow-2xl w-full max-w-5xl h-[85vh] flex flex-col overflow-hidden border border-white/20">
+                    <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50 shrink-0">
+                        <div><h3 className="text-xl font-black text-slate-900 tracking-tighter uppercase italic leading-none">{editingId ? 'Editar Receta' : 'Formulador SMAE Dinámico'}</h3><p className="text-[10px] font-bold text-slate-400 uppercase mt-1 tracking-widest">Cálculo de Macronutrientes en Tiempo Real</p></div>
+                        <button onClick={()=>setShowRecipeModal(false)} className="p-2 hover:bg-rose-50 rounded-full transition-all text-slate-400"><X className="w-6 h-6"/></button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-8 space-y-8">
+                        <div><Label>Nombre de la Preparación</Label><input className="w-full p-4 bg-slate-50 border border-slate-200 rounded-xl font-bold text-lg outline-none focus:ring-2 focus:ring-emerald-500 shadow-inner" placeholder="Ej. Bowl de Avena y Manzana" value={newRecipe.nombre} onChange={(e)=>setNewRecipe({...newRecipe, nombre:e.target.value})} /></div>
+                        
+                        <div className="grid grid-cols-2 gap-8">
+                            <div className="space-y-4">
+                                <Label className="text-emerald-700 italic">Insumos SMAE Disponibles</Label>
+                                <div className="h-[300px] overflow-y-auto p-4 bg-slate-50 rounded-xl border border-slate-200 shadow-inner space-y-2">
+                                    {materiaPrima.map(m => (
+                                    <button key={m.id} onClick={()=>setNewRecipe({...newRecipe, ingredientes: [...newRecipe.ingredientes, {id: m.id, porcion: 1}]})} className="w-full p-3 bg-white border border-slate-100 rounded-lg text-xs font-bold text-slate-700 hover:border-emerald-400 hover:text-emerald-700 transition-all text-left flex justify-between items-center shadow-sm group">
+                                        <div className="flex flex-col"><span>{m.nombre}</span><span className="text-[9px] text-emerald-600 uppercase font-black tracking-tighter italic opacity-60">{m.grupo}</span></div>
+                                        <Plus className="w-4 h-4 text-emerald-200 group-hover:text-emerald-600 transition-all" />
+                                    </button>
+                                    ))}
+                                </div>
+                            </div>
+                            <div className="space-y-4">
+                                <Label className="text-slate-900 italic">Composición de la Receta</Label>
+                                <div className="h-[300px] overflow-y-auto p-4 bg-white rounded-xl border border-emerald-100 shadow-inner space-y-3">
+                                    {newRecipe.ingredientes.map((ing, i) => (
+                                    <div key={i} className="flex items-center justify-between p-3 bg-emerald-50/50 border border-emerald-100 rounded-lg shadow-sm">
+                                        <span className="text-xs font-bold text-emerald-900 italic">{materiaPrima.find(m=>m.id===ing.id)?.nombre}</span>
+                                        <div className="flex items-center space-x-3">
+                                            <input type="number" className="w-12 p-1.5 bg-white rounded-md text-center font-bold text-emerald-700 text-sm outline-none border border-emerald-200" value={ing.porcion} onChange={(e) => {
+                                                const updatedIngs = [...newRecipe.ingredientes];
+                                                updatedIngs[i].porcion = Number(e.target.value);
+                                                setNewRecipe({...newRecipe, ingredientes: updatedIngs});
+                                            }} />
+                                            <button onClick={()=>setNewRecipe({...newRecipe, ingredientes: newRecipe.ingredientes.filter((_, idx)=>idx !== i)})} className="p-1.5 hover:bg-rose-100 text-rose-500 rounded-md transition-colors"><Trash2 className="w-4 h-4" /></button>
+                                        </div>
+                                    </div>
+                                    ))}
+                                    {newRecipe.ingredientes.length === 0 && <div className="h-full flex flex-col items-center justify-center opacity-20"><Utensils className="w-10 h-10 mb-2" /><p className="font-bold text-[10px] uppercase">Sin ingredientes</p></div>}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="bg-[#0F172A] p-6 flex justify-between items-center text-white">
+                        <div className="flex space-x-8">
+                            <div><p className="text-[9px] text-slate-400 uppercase tracking-widest mb-1">Calorías Totales</p><p className="text-2xl font-black text-emerald-400">{calculoEnTiempoReal.kcal.toFixed(1)} <span className="text-xs">Kcal</span></p></div>
+                            <div><p className="text-[9px] text-slate-400 uppercase tracking-widest mb-1">Proteína</p><p className="text-xl font-bold">{calculoEnTiempoReal.prot.toFixed(1)} <span className="text-[10px]">g</span></p></div>
+                            <div><p className="text-[9px] text-slate-400 uppercase tracking-widest mb-1">Lípidos</p><p className="text-xl font-bold text-rose-400">{calculoEnTiempoReal.lip.toFixed(1)} <span className="text-[10px]">g</span></p></div>
+                        </div>
+                        <div className="flex space-x-3">
+                            <button onClick={()=>setShowRecipeModal(false)} className="px-5 py-2.5 text-slate-400 font-bold uppercase text-[10px] tracking-widest">Cancelar</button>
+                            <button onClick={handleSaveRecipe} className="px-8 py-3 bg-emerald-600 text-white rounded-xl font-black text-[11px] uppercase tracking-widest shadow-xl active:scale-95 flex items-center leading-none"><Save className="w-4 h-4 mr-2"/> Guardar Fórmula</button>
+                        </div>
+                    </div>
+                    </div>
+                </div>
+            )}
+            </div>
+        );
+        }
+
+        function SubModuloPlanNutricional({ recetas, pacientes, brandConfig }) {
+        const [selectedPatientId, setSelectedPatientId] = useState('');
+        const [openSelector, setOpenSelector] = useState(null); 
+        const [planData, setPlanData] = useState({}); 
+        const momentos = ['AL DESPERTAR', 'DESAYUNO', 'COLACIÓN 1', 'COMIDA', 'COLACIÓN 2', 'CENA'];
+
+        const generarPDF = () => {
+            const element = document.getElementById('plan-imprimible');
+            const opt = {
+            margin:       10,
+            filename:     'Plan_Nutricional_CRM.pdf',
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2, useCORS: true },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'landscape' }
+            };
+            if (!window.html2pdf) {
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+            script.onload = () => window.html2pdf().set(opt).from(element).save();
+            document.head.appendChild(script);
+            } else {
+            window.html2pdf().set(opt).from(element).save();
+            }
+        };
+
+        return (
+            <div className="space-y-6 pb-12 animate-in zoom-in-95 duration-500">
+            
+            <style>{`
+                @media print {
+                body * { visibility: hidden; }
+                #plan-imprimible, #plan-imprimible * { visibility: visible; }
+                #plan-imprimible { position: absolute; left: 0; top: 0; width: 100%; box-shadow: none; border: none; margin: 0; padding: 20px; }
+                .no-print { display: none !important; }
+                }
+            `}</style>
+
+            <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex flex-col md:flex-row justify-between items-center gap-6 border-b-4 border-emerald-500 no-print">
+                <div className="w-full md:max-w-xs z-50">
+                    <Label>Vincular Plan de Alimentación</Label>
+                    <BuscadorPacientes pacientes={pacientes} selectedId={selectedPatientId} onSelect={setSelectedPatientId} placeholder="Escriba para buscar paciente..." />
+                </div>
+                <div className="text-right pr-4"><p className="text-[10px] font-black text-slate-400 uppercase mb-1 italic opacity-60 tracking-[0.2em]">Ingesta Diaria Calculada</p><p className="text-4xl font-black text-emerald-600 leading-none tracking-tighter italic">1,850 <span className="text-xs font-bold text-slate-300 ml-1 uppercase leading-none">Kcal / Día</span></p></div>
+            </div>
+            
+            <div id="plan-imprimible" className="bg-white rounded-3xl border border-slate-200 shadow-xl overflow-hidden relative group">
+                {brandConfig?.background && <img src={brandConfig.background} className="absolute inset-0 w-full h-full object-cover opacity-5 pointer-events-none" />}
+                <div className="p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/30 backdrop-blur-sm relative z-10">
+                    <div className="flex items-center">
+                    {brandConfig?.logo ? <img src={brandConfig.logo} alt="Logo" className="h-10 w-auto mr-4 shadow-md rounded-lg" /> : <div className="w-10 h-10 bg-emerald-600 rounded-xl flex items-center justify-center mr-4 shadow-xl shadow-emerald-500/10"><Leaf className="text-white w-6 h-6" /></div>}
+                    <div><h1 className="text-2xl font-black text-slate-900 leading-tight uppercase italic leading-none">Nutri<span className="text-emerald-500 font-black">CRM</span></h1><p className="text-[9px] font-black text-slate-400 uppercase tracking-[0.4em] mt-1 tracking-widest italic opacity-60">Protocolo Maestro SMAE v5.0</p></div>
+                    </div>
+                    <div className="text-right hidden print:block">
+                    <p className="text-sm font-black text-slate-900 uppercase tracking-widest">Paciente: {pacientes.find(p => p.id == selectedPatientId)?.nombre || '--'}</p>
+                    <p className="text-xs text-slate-500 mt-1 font-medium">Dr. Eduardo Suárez - Nutrición Especializada</p>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-[140px_100px_1fr_1fr_1fr_1fr_180px] bg-emerald-600 text-white font-bold text-[9px] uppercase tracking-widest text-center py-4 border-b border-emerald-700 relative z-10 shadow-inner italic">
+                <div>Intervalo</div><div className="border-l border-emerald-500/50">Horario</div><div className="border-l border-emerald-500/50">Opción 1</div><div className="border-l border-emerald-500/50">Opción 2</div><div className="border-l border-emerald-500/50">Opción 3</div><div className="border-l border-emerald-500/50">Opción 4</div><div className="border-l border-emerald-500/50 italic text-emerald-200">Equivalentes</div>
+                </div>
+                
+                {momentos.map((m, i) => (
+                <div key={i} className="grid grid-cols-[140px_100px_1fr_1fr_1fr_1fr_180px] min-h-[100px] divide-x divide-slate-100 border-b last:border-0 relative z-10 bg-white hover:bg-emerald-50/20 transition-colors">
+                    <div className="bg-slate-50/80 flex items-center justify-center p-3 text-[10px] font-bold text-slate-500 text-center uppercase tracking-wider">{m}</div>
+                    <div className="flex items-center justify-center p-3 text-xs font-bold text-slate-400 italic">--:--</div>
+                    {[1,2,3,4].map(op => (
+                    <div key={op} onClick={()=>setOpenSelector({dayIdx: i, opIdx: op})} className="p-3 hover:bg-emerald-50/40 cursor-pointer flex flex-col items-center justify-center transition-all m-1 border-2 border-dashed border-transparent hover:border-emerald-300 rounded-xl no-print-border">
+                        {planData[`${i}-${op}`] ? (
+                        <div className="text-center animate-in zoom-in duration-300"><p className="text-[12px] font-bold text-slate-900 leading-tight uppercase italic">{planData[`${i}-${op}`].nombre}</p><span className="text-[9px] font-black text-emerald-600 uppercase tracking-widest mt-1">{planData[`${i}-${op}`].kcalTotales} KCAL</span></div>
+                        ) : (
+                        <PlusCircle className="w-5 h-5 text-slate-200 hover:text-emerald-400 transition-colors no-print" />
+                        )}
+                    </div>
+                    ))}
+                    <div className="bg-slate-50/50 p-4 flex flex-col justify-center space-y-2 text-[9px] font-medium text-slate-500 uppercase italic"><span className="flex items-center text-blue-600"><ChevronRight className="w-3 h-3 mr-1 opacity-50"/> 2 Cereales</span><span className="flex items-center text-rose-600"><ChevronRight className="w-3 h-3 mr-1 opacity-50"/> 2.5 AOA M.B.</span></div>
+                </div>
+                ))}
+                <div className="p-8 bg-slate-900 text-white flex justify-between items-center relative z-10 shadow-inner no-print">
+                    <div className="flex items-center space-x-6"><div><p className="text-[9px] font-bold text-slate-400 uppercase tracking-widest mb-1 italic opacity-60">Paciente Referencia</p><p className="text-base font-bold italic uppercase">{pacientes.find(p => p.id == selectedPatientId)?.nombre || '-- SELECCIONE --'}</p></div></div>
+                    <div className="flex space-x-3">
+                        <button onClick={()=>window.print()} className="bg-slate-800 text-slate-300 px-5 py-2.5 rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-slate-700 transition-all flex items-center shadow-md"><Printer className="w-4 h-4 mr-2" /> Imprimir</button>
+                        <button onClick={generarPDF} className="bg-blue-600 text-white px-5 py-2.5 rounded-lg font-bold text-xs uppercase tracking-widest hover:bg-blue-500 transition-all flex items-center shadow-md"><Download className="w-4 h-4 mr-2" /> Generar PDF</button>
+                        <button className="bg-emerald-600 text-white px-6 py-2.5 rounded-lg font-bold text-xs uppercase tracking-widest shadow-md hover:bg-emerald-500 active:scale-95 transition-all flex items-center group italic"><Save className="w-4 h-4 mr-2 group-hover:rotate-12 transition-transform shadow-md" /> Guardar</button>
+                    </div>
+                </div>
+            </div>
+
+            {openSelector && (
+                <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-3xl z-[400] flex items-center justify-center p-8 animate-in zoom-in duration-200">
+                    <div className="bg-white rounded-[30px] shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col overflow-hidden border border-white/10">
+                    <div className="p-6 border-b flex justify-between items-center bg-slate-50/50 shrink-0">
+                        <div><h3 className="text-lg font-black text-slate-900 uppercase italic">Vincular Receta Formulada</h3></div>
+                        <button onClick={()=>setOpenSelector(null)} className="p-2 hover:bg-rose-50 rounded-full transition-all"><X className="w-6 h-6 text-slate-400"/></button>
+                    </div>
+                    <div className="flex-1 overflow-y-auto p-6 space-y-3 scrollbar-hide">
+                        {recetas.map(r => (<button key={r.id} onClick={()=>{setPlanData({...planData, [`${openSelector.dayIdx}-${openSelector.opIdx}`]: r}); setOpenSelector(null);}} className="w-full p-5 bg-white border border-slate-200 rounded-2xl text-left hover:border-emerald-500 hover:shadow-lg transition-all group flex justify-between items-center shadow-sm"><div><p className="text-base font-black text-slate-900 mb-1 uppercase italic">{r.nombre}</p><span className="text-[10px] font-bold text-emerald-600 uppercase tracking-widest bg-emerald-50 px-2 py-1 rounded border border-emerald-100">{r.kcalTotales} Kcal</span></div><div className="w-10 h-10 bg-slate-50 rounded-full flex items-center justify-center group-hover:bg-emerald-600 group-hover:text-white transition-all"><PlusCircle className="w-5 h-5" /></div></button>))}
+                    </div>
+                    </div>
+                </div>
+            )}
+            </div>
+        );
+        }
+
+        // ==========================================================================
+        // 5. MÓDULOS ENVOLTORIO Y NAVEGACIÓN (PACIENTES, CALENDARIO, CONFIG)
+        // ==========================================================================
+        function ModuloDietasWrapper({ materiaPrima, setMateriaPrima, recetas, setRecetas, pacientes, brandConfig }) {
+        const [subModule, setSubModule] = useState('plan'); 
+        return (
+            <div className="max-w-full mx-auto space-y-6 animate-in fade-in duration-300">
+            <div className="flex justify-between items-center border-b border-slate-200 pb-4 px-2">
+                <div>
+                <h2 className="text-lg font-bold text-slate-900 uppercase italic leading-none">Ingeniería SMAE v5.0</h2>
+                <p className="text-[11px] text-slate-400 font-bold uppercase mt-2 tracking-widest">Base de Datos y Planificación</p>
+                </div>
+                <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+                <button onClick={()=>setSubModule('materia')} className={`px-5 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${subModule === 'materia' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-50'}`}>Insumos</button>
+                <button onClick={()=>setSubModule('recetas')} className={`px-5 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${subModule === 'recetas' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-50'}`}>Recetas</button>
+                <button onClick={()=>setSubModule('plan')} className={`px-5 py-2 text-[10px] font-black uppercase tracking-widest rounded-lg transition-all ${subModule === 'plan' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-50'}`}>Planes</button>
+                </div>
+            </div>
+            {subModule === 'materia' && <SubModuloMateriaPrima data={materiaPrima} setData={setMateriaPrima} />}
+            {subModule === 'recetas' && <SubModuloBancoRecetas materiaPrima={materiaPrima} recetas={recetas} setRecetas={setRecetas} />}
+            {subModule === 'plan' && <SubModuloPlanNutricional recetas={recetas} pacientes={pacientes} brandConfig={brandConfig} />}
+            </div>
+        );
+        }
+
+        function ModuloPacientes({ pacientes, onOpenModal, onSelectPaciente }) {
+        return (
+            <div className="max-w-6xl mx-auto space-y-6 animate-in fade-in duration-300">
+            <div className="flex justify-between items-center px-2">
+                <div><h2 className="text-xl font-bold text-slate-900 uppercase tracking-tight italic">Directorio Clínico</h2><p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Gestión Centralizada SMAE</p></div>
+                <button onClick={onOpenModal} className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold text-xs hover:bg-emerald-700 shadow-lg flex items-center transition-all group"><PlusCircle className="w-4 h-4 mr-2 group-hover:rotate-90 transition-transform" /> Registrar Paciente</button>
+            </div>
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <table className="w-full text-left">
+                <thead className="bg-slate-50/50 border-b border-slate-100 text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                    <tr><th className="px-8 py-5">Paciente / Expediente</th><th className="px-8 py-5 text-center">Estatus</th><th className="px-8 py-5"></th></tr>
+                </thead>
+                <tbody className="divide-y divide-slate-50">
+                    {pacientes.map(p => (
+                    <tr key={p.id} onClick={() => onSelectPaciente(p.id)} className="hover:bg-emerald-50/10 cursor-pointer transition-all duration-300 group">
+                        <td className="px-8 py-4 flex items-center">
+                        <div className="w-10 h-10 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-sm mr-4 shadow-inner group-hover:bg-emerald-600 group-hover:text-white transition-all">{p.nombre[0]}</div>
+                        <div><p className="text-sm font-bold text-slate-900 uppercase italic leading-none mb-1">{p.nombre}</p><p className="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Última Sesión: {p.fecha}</p></div>
+                        </td>
+                        <td className="px-8 py-4 text-center"><span className="px-3 py-1 bg-emerald-50 text-emerald-700 text-[9px] font-black rounded-lg uppercase tracking-widest border border-emerald-100">{p.estado}</span></td>
+                        <td className="px-8 py-4 text-right"><ChevronRight className="w-5 h-5 text-slate-300 ml-auto group-hover:text-emerald-500 group-hover:translate-x-1 transition-all" /></td>
+                    </tr>
+                    ))}
+                </tbody>
+                </table>
+            </div>
+            </div>
+        );
+        }
+
+        function ModuloCalendario({ pacientes }) {
+        const [citas, setCitas] = useState([{ id: 1, dia: 1, hora: '10:00 AM', pacienteId: 1, tipo: 'Primera Vez' }]);
+        const [showModal, setShowModal] = useState(false);
+        const [nuevaCita, setNuevaCita] = useState({ dia: 0, hora: '', pacienteId: '' });
+
+        const dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes'];
+
+        return (
+            <div className="h-full space-y-6 animate-in fade-in duration-300 pb-10 px-2">
+            <div className="flex justify-between items-center px-4">
+                <div><h2 className="text-xl font-bold text-slate-900 uppercase italic leading-none">Agenda Maestro de Sesiones</h2></div>
+                <button onClick={() => setShowModal(true)} className="bg-emerald-600 text-white px-5 py-2.5 rounded-xl font-bold text-xs uppercase tracking-widest shadow-md hover:bg-emerald-700 transition-all flex items-center"><CalendarPlus className="w-4 h-4 mr-2" /> Nueva Cita</button>
+            </div>
+
+            <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-hidden flex flex-col min-h-[500px]">
+                <div className="grid grid-cols-5 border-b border-slate-100 bg-slate-50/50 italic">
+                {dias.map(d => <div key={d} className="py-4 text-center text-xs font-black text-slate-400 uppercase tracking-widest border-r border-slate-100 last:border-0 leading-none">{d}</div>)}
+                </div>
+                <div className="flex-1 grid grid-cols-5 bg-slate-50/20 divide-x divide-slate-100">
+                    {dias.map((d, i) => (
+                    <div key={i} className="flex flex-col p-4 gap-4 relative group/col">
+                        {citas.filter(c => c.dia === i).map(c => (
+                        <div key={c.id} className="bg-white border border-emerald-100 p-4 rounded-xl shadow-sm hover:shadow-md transition-all cursor-pointer border-l-4 border-l-emerald-500 relative">
+                            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-1 rounded uppercase tracking-wider">{c.hora}</span>
+                            <p className="font-bold text-slate-900 text-sm mt-3 mb-1 truncate">{pacientes.find(p=>p.id == c.pacienteId)?.nombre || 'Paciente'}</p>
+                            <div className="flex items-center text-[10px] font-semibold text-slate-500 uppercase tracking-widest"><History className="w-3 h-3 mr-1" /> {c.tipo}</div>
+                        </div>
+                        ))}
+                        
+                        <button onClick={()=>{setNuevaCita({...nuevaCita, dia: i}); setShowModal(true);}} className="w-full border-2 border-dashed border-transparent hover:border-emerald-200 rounded-xl h-20 flex items-center justify-center group/btn transition-all mt-auto">
+                            <PlusCircle className="w-6 h-6 text-slate-200 group-hover/btn:text-emerald-400 transition-colors" />
+                        </button>
+                    </div>
+                    ))}
+                </div>
+            </div>
+
+            {showModal && (
+                <div className="fixed inset-0 bg-slate-900/70 backdrop-blur-sm z-[600] flex items-center justify-center p-4 animate-in zoom-in duration-200">
+                <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm p-6 border border-slate-200 overflow-visible">
+                    <div className="flex justify-between items-center mb-6">
+                        <h3 className="font-bold text-slate-800 text-base uppercase italic">Programar Cita</h3>
+                        <button onClick={()=>setShowModal(false)} className="p-1 hover:bg-slate-100 rounded-full"><X className="w-5 h-5 text-slate-400"/></button>
+                    </div>
+                    <div className="space-y-4 relative">
+                        <div>
+                            <Label>Día de la semana</Label>
+                            <select className="w-full p-2.5 bg-slate-50 border border-slate-200 rounded-lg text-sm font-semibold outline-none focus:ring-1 focus:ring-emerald-500" value={nuevaCita.dia} onChange={(e)=>setNuevaCita({...nuevaCita, dia: Number(e.target.value)})}>
+                                {dias.map((d, i) => <option key={i} value={i}>{d}</option>)}
+                            </select>
+                        </div>
+                        <div>
+                            <Label>Horario</Label>
+                            <FormInput placeholder="Ej. 10:00 AM" value={nuevaCita.hora} onChange={(e)=>setNuevaCita({...nuevaCita, hora: e.target.value})} />
+                        </div>
+                        <div className="relative z-50">
+                            <Label>Asignar Paciente (Buscar)</Label>
+                            <BuscadorPacientes pacientes={pacientes} selectedId={nuevaCita.pacienteId} onSelect={(val) => setNuevaCita({...nuevaCita, pacienteId: val})} />
+                        </div>
+                        <div className="flex space-x-3 pt-4">
+                        <button onClick={()=>setShowModal(false)} className="flex-1 py-2.5 text-slate-500 font-bold text-xs uppercase hover:bg-slate-50 rounded-lg transition-colors">Cancelar</button>
+                        <button onClick={()=>{ if(nuevaCita.hora && nuevaCita.pacienteId) { setCitas([...citas, {...nuevaCita, id: Date.now(), tipo: 'Seguimiento'}]); setShowModal(false); } }} className="flex-[2] py-2.5 bg-emerald-600 text-white rounded-lg font-bold text-xs uppercase shadow-md active:scale-95 transition-all">Agendar</button>
+                        </div>
+                    </div>
+                </div>
+                </div>
+            )}
+            </div>
+        );
+        }
+
+        function ModuloConfiguracion({ config, setConfig }) {
+        const fonts = ['Inter', 'Roboto', 'Open Sans', 'Lato'];
+        return (
+            <div className="max-w-4xl mx-auto space-y-6 animate-in fade-in duration-500 pb-10">
+            <div className="bg-white p-8 rounded-2xl border border-slate-200 shadow-sm space-y-8 relative overflow-hidden">
+                <div className="absolute top-0 left-0 w-full h-1 bg-emerald-600 opacity-20 shadow-lg"></div>
+                <h2 className="text-xl font-bold text-slate-900 tracking-tight uppercase italic leading-none italic uppercase">Ajustes Institucionales</h2>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-10 border-t pt-8 border-slate-50">
+                <div className="space-y-4"><h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center leading-none italic uppercase"><Type className="w-4 h-4 mr-2 text-emerald-500" /> Fuente Global Maestro</h3><div className="grid grid-cols-2 gap-3">{fonts.map(font => (<button key={font} onClick={() => setConfig({...config, fontFamily: font})} className={`p-4 rounded-xl border-2 text-sm font-black transition-all text-center shadow-sm ${config.fontFamily === font ? 'border-emerald-600 bg-emerald-50 text-emerald-700 scale-105 shadow-emerald-400/20' : 'border-slate-50 hover:border-emerald-200 text-slate-300 bg-slate-50'}`} style={{ fontFamily: font }}>{font}</button>))}</div></div>
+                <div className="space-y-4"><h3 className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center leading-none italic uppercase"><ImageIcon className="w-4 h-4 mr-2 text-emerald-500" /> Logotipo Institucional</h3><div className="h-44 bg-slate-50 border-2 border-dashed border-slate-200 rounded-xl flex flex-col items-center justify-center relative overflow-hidden group cursor-pointer hover:border-emerald-400 transition-all shadow-inner">{config.logo ? <img src={config.logo} alt="Logo" className="max-h-[75%] max-w-[75%] object-contain drop-shadow-2xl animate-in zoom-in duration-500" /> : <div className="text-center opacity-30 group-hover:opacity-100 transition-all"><Upload className="w-10 h-10 mx-auto mb-2 text-emerald-600" /><p className="text-[9px] font-bold uppercase tracking-tighter italic leading-none tracking-widest uppercase italic leading-none italic uppercase italic leading-none">Cargar Logo</p></div>}<input type="file" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => { const reader = new FileReader(); reader.onload = (ev) => setConfig({...config, logo: ev.target.result}); reader.readAsDataURL(e.target.files[0]); }} /></div></div>
+                </div>
+            </div>
+            </div>
+        );
+        }
+
+        function ModuloPagos() { 
+        return (
+            <div className="text-center py-40 text-slate-300 font-bold text-xl italic uppercase tracking-[0.5em] flex flex-col items-center">
+            <Wallet className="w-16 h-16 mb-6 opacity-20" />
+            <p className="opacity-40">Módulo Financiero Maestro</p>
+            </div>
+        ); 
+        }
+
+        // ==========================================================================
+        // 6. COMPONENTE PRINCIPAL APP (CENTRAL)
+        // ==========================================================================
+        function App() {
+        const [activeModule, setActiveModule] = useState('pacientes');
+        const [showNewPatientModal, setShowNewPatientModal] = useState(false);
+        const [editingPatientId, setEditingPatientId] = useState(null);
+        const [systemConfig, setSystemConfig] = useState({ fontFamily: 'Inter', logo: null, background: null });
+
+        useEffect(() => {
+            const link = document.createElement('link');
+            link.href = 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Roboto:wght@400;500;700&family=Open+Sans:wght@400;600;700&family=Lato:wght@400;700;900&display=swap';
+            link.rel = 'stylesheet';
+            document.head.appendChild(link);
+        }, []);
+
+        const [pacientes, setPacientes] = useState([
+            { 
+            id: 1, nombre: 'Ana García', fecha: '11/03/2026', email: 'ana.garcia@clinica.com', telefono: '555-0101',
+            motivoConsulta: 'Control de peso', diagnostico: 'Sobrepeso grado I', edad: 28, sexo: 'Femenino',
+            pesoPerdido6m: 'No', pesoAumentado6m: 'No', apetitoCambiado: 'Igual', talla: 165, peso: 72, 
+            pesoDeseado: 60, pesoHabitual: 68, estado: 'Activo', patologicos: ['Gastritis'], recordatorio24h: [], planesHistorial: []
+            },
+            {
+            id: 2, nombre: 'Carlos López', fecha: '15/03/2026', estado: 'Activo', diagnostico: 'Masa Muscular', patologicos: [], sexo: 'Masculino'
+            }
+        ]);
+
+        const [materiaPrima, setMateriaPrima] = useState([
+            { id: 1, nombre: 'Pechuga de Pollo', grupo: 'Alimentos de origen animal de muy bajo aporte de grasa', cantSugerida: '30', unidad: 'g', pesoBruto: 35, pesoNeto: 30, energia: 75, proteina: 7, lipidos: 1, hc: 0, fibra: 0, vitA: 0, vitC: 0, folico: 1.2, hierro: 0.3, potasio: 75, ig: 0, cg: 0 },
+            { id: 2, nombre: 'Manzana Picada', grupo: 'Fruta', cantSugerida: '1', unidad: 'taza', pesoBruto: 138, pesoNeto: 124, energia: 65, proteina: 0.3, lipidos: 0.2, hc: 17.1, fibra: 3, vitA: 4.5, vitC: 5.7, folico: 3.7, hierro: 0.1, potasio: 132, ig: 38, cg: 6 }
+        ]);
+
+        const [recetas, setRecetas] = useState([
+            { id: 1, nombre: 'Bowl Pollo SMAE', ingredientes: [{ id: 1, porcion: 3 }], kcalTotales: 225 },
+            { id: 2, nombre: 'Avena con Manzana', ingredientes: [{ id: 2, porcion: 1 }], kcalTotales: 65 }
+        ]);
+
+        const agregarPaciente = (nuevo) => {
+            const defaultData = {
+            id: Date.now(), nombre: nuevo.nombre, fecha: new Date().toLocaleDateString(),
+            estado: 'Activo', patologicos: [], recordatorio24h: [], planesHistorial: [], sexo: 'Femenino', diagnostico: 'Ingreso Maestro'
+            };
+            setPacientes([defaultData, ...pacientes]);
+            setShowNewPatientModal(false);
+            setEditingPatientId(defaultData.id);
+        };
+
+        const actualizarPaciente = (datos) => {
+            setPacientes(prev => prev.map(p => p.id === datos.id ? datos : p));
+            setEditingPatientId(null);
+        };
+
+        const menuItems = [
+            { id: 'pacientes', label: 'Pacientes', icon: Users },
+            { id: 'dietas', label: 'Dietas', icon: Leaf },
+            { id: 'calendario', label: 'Calendario', icon: CalendarDays },
+            { id: 'pagos', label: 'Pagos', icon: Wallet },
+        ];
+
+        const pacienteEnEdicion = pacientes.find(p => p.id === editingPatientId);
+
+        return (
+            <div className="flex h-screen w-full bg-slate-50 overflow-hidden text-slate-800" style={{ fontFamily: `'${systemConfig.fontFamily}', sans-serif` }}>
+            
+            {/* SIDEBAR NO SE IMPRIME */}
+            <aside className="w-64 bg-[#0F172A] flex flex-col shrink-0 z-20 shadow-xl border-r border-slate-800 no-print">
+                <div className="h-16 flex items-center px-6 border-b border-slate-800">
+                <div className="w-7 h-7 bg-emerald-500 rounded-md flex items-center justify-center mr-3 shadow-lg shadow-emerald-500/20"><Leaf className="text-white w-4 h-4" /></div>
+                <span className="text-base font-bold tracking-tight text-white uppercase italic leading-none">Nutri<span className="text-emerald-500 font-black">CRM</span></span>
+                </div>
+                <nav className="flex-1 px-4 py-6 space-y-1">
+                {menuItems.map((item) => {
+                    const IconComp = item.icon; 
+                    return (
+                    <button key={item.id} onClick={() => { setActiveModule(item.id); setEditingPatientId(null); }} className={`w-full flex items-center px-4 py-2.5 rounded-xl text-[14px] font-semibold transition-all ${activeModule === item.id ? 'bg-emerald-600 text-white shadow-xl shadow-emerald-800/20' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}>
+                        <IconComp className="w-4 h-4 mr-3" /> {item.label}
+                    </button>
+                    )
+                })}
+                </nav>
+                <div className="p-4 border-t border-slate-800">
+                <button onClick={() => setActiveModule('config')} className={`w-full flex items-center px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${activeModule === 'config' ? 'bg-slate-700 text-white shadow-lg' : 'text-slate-400 hover:text-white hover:bg-slate-800'}`}><Settings className="w-4 h-4 mr-3" /> Configuración</button>
+                </div>
+            </aside>
+
+            {/* MAIN CONTENT */}
+            <main className="flex-1 flex flex-col min-w-0 relative">
+                <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 shrink-0 z-10 shadow-sm relative z-10 backdrop-blur-md no-print">
+                <div className="flex items-center space-x-2"><Monitor className="w-4 h-4 text-slate-400" /><h1 className="text-xs font-black text-slate-500 uppercase tracking-widest leading-none">{activeModule}</h1></div>
+                <div className="flex items-center space-x-4">
+                    <div className="relative group">
+                    <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input type="text" placeholder="Buscar expediente..." className="pl-9 pr-4 py-1.5 bg-slate-50 border border-slate-200 rounded-md text-xs font-medium focus:bg-white focus:ring-1 focus:ring-emerald-500 outline-none w-56 shadow-inner" />
+                    </div>
+                    <button className="relative p-2 text-slate-400 hover:text-emerald-600 transition-colors"><Bell className="w-5 h-5" /></button>
+                    <div className="flex items-center space-x-2 pl-4 border-l border-slate-200 font-bold text-xs uppercase italic tracking-tighter">
+                    <span className="text-slate-400 hidden lg:inline">Dr. Eduardo Suárez</span>
+                    <div className="w-8 h-8 rounded-lg bg-emerald-600 text-white flex items-center justify-center font-black text-[10px] shadow-md uppercase italic leading-none">ES</div>
+                    </div>
+                </div>
+                </header>
+
+                <div className="flex-1 overflow-auto p-8 bg-slate-50/50 scrollbar-hide">
+                {activeModule === 'pacientes' && <ModuloPacientes pacientes={pacientes} onOpenModal={() => setShowNewPatientModal(true)} onSelectPaciente={setEditingPatientId} />}
+                {activeModule === 'dietas' && <ModuloDietasWrapper materiaPrima={materiaPrima} setMateriaPrima={setMateriaPrima} recetas={recetas} setRecetas={setRecetas} pacientes={pacientes} brandConfig={systemConfig} />}
+                {activeModule === 'calendario' && <ModuloCalendario pacientes={pacientes} />}
+                {activeModule === 'pagos' && <ModuloPagos />}
+                {activeModule === 'config' && <ModuloConfiguracion config={systemConfig} setConfig={setSystemConfig} />}
+                </div>
+                
+                {showNewPatientModal && <ModalNuevoPaciente onClose={() => setShowNewPatientModal(false)} onSave={agregarPaciente} />}
+                {editingPatientId && <ModalHistoriaClinicaCompleta paciente={pacienteEnEdicion} onClose={() => setEditingPatientId(null)} onSave={actualizarPaciente} />}
+            </main>
+            </div>
+        );
+        }
+
+        // Renderizado Final
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
